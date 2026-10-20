@@ -440,19 +440,12 @@
     ctx.font = `900 ${TICKET_LABEL.size*s}px "Noto Sans JP", sans-serif`;
     ctx.fillText("駐車証", TICKET_LABEL.x*s, TICKET_LABEL.baselineTop*s);
 
-    // 「No.」
-    ctx.font = `900 ${NO_LABEL.size*s}px "Noto Sans JP", sans-serif`;
-    ctx.fillText("No.", NO_LABEL.x*s, NO_LABEL.baselineTop*s);
+    // 「No.」と番号（未指定の場合はどちらも表示しない）
+    const hasNumber = !(number === null || number === undefined || number === "");
+    if (hasNumber){
+      ctx.font = `900 ${NO_LABEL.size*s}px "Noto Sans JP", sans-serif`;
+      ctx.fillText("No.", NO_LABEL.x*s, NO_LABEL.baselineTop*s);
 
-    // 番号（未指定の場合は手書き用の線のみ表示）
-    if (number === null || number === undefined || number === ""){
-      ctx.strokeStyle = INK;
-      ctx.lineWidth = Math.max(1, 2*s);
-      ctx.beginPath();
-      ctx.moveTo(NUMBER_LINE.x1*s, NUMBER_LINE.top*s);
-      ctx.lineTo(NUMBER_LINE.x2*s, NUMBER_LINE.top*s);
-      ctx.stroke();
-    } else {
       ctx.font = `900 ${NUMBER_TEXT.size*s}px "Noto Sans JP", sans-serif`;
       ctx.fillText(String(number), NUMBER_TEXT.x*s, NUMBER_TEXT.baselineTop*s);
     }
