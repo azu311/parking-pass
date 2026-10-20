@@ -247,9 +247,9 @@
       </select>
       <input type="text" id="affiliationCustom" placeholder="所属名を入力" style="display:none; margin-top:8px;">
 
-      <label for="numberInput">駐車証 No.（複数・範囲指定可）</label>
-      <input type="text" id="numberInput" placeholder="例）1-10 ／ 3,5,7 ／ 1-3,8,10-12">
-      <div class="hint">「1-10」で1〜10の10枚、「3-5」で3〜5の3枚を生成します。カンマ区切りで複数の番号・範囲を組み合わせできます（全角の「〜」「、」にも対応）。</div>
+      <label for="numberInput">駐車証 No.（複数・範囲指定可・空欄で番号なし）</label>
+      <input type="text" id="numberInput" placeholder="例）1-10 ／ 3,5,7 ／ 1-3,8,10-12（空欄可）">
+      <div class="hint">「1-10」で1〜10の10枚、「3-5」で3〜5の3枚を生成します。カンマ区切りで複数の番号・範囲を組み合わせできます（全角の「〜」「、」にも対応）。空欄のままにすると、番号を印字せず手書き用の線のみのデザインで1枚だけ生成します。</div>
     </div>
 
     <div class="panel">
@@ -320,6 +320,7 @@
   const TICKET_LABEL = { x: 283.05, baselineTop: 552.28, size: 91.93 }; // 「駐車証」
   const NO_LABEL      = { x: 571.77, baselineTop: 556.95, size: 54.31 }; // 「No.」
   const NUMBER_TEXT   = { x: 683.2, baselineTop: 552.28, size: 91.93 };
+  const NUMBER_LINE   = { x1: 683.2, x2: 822.4, top: 556.3 }; // 番号を空欄にした場合の手書き用の線
 
   const SCALE = 2; // 出力解像度倍率（pt -> px）
 
@@ -351,14 +352,15 @@
   }
 
   // ===== 番号パース: "1-10, 3, 8-12" のような文字列を配列に =====
+  // 空欄の場合は「番号なし」を表す [null] を返す（1枚だけ、No.欄を空白で生成）
   function parseNumbers(str){
-    if (!str) return [];
+    if (!str || !str.trim()) return [null];
     const normalized = toHalfWidth(str)
       .replace(/[〜～]/g, "-")
       .replace(/[、，]/g, ",")
       .replace(/　/g, " ")
       .trim();
-    if (!normalized) return [];
+    if (!normalized) return [null];
     const parts = normalized.split(",").map(s => s.trim()).filter(Boolean);
     const result = new Set();
     for (const part of parts){
@@ -374,7 +376,16 @@
         throw new Error(`「${part}」を番号として認識できませんでした`);
       }
     }
+    if (result.size === 0) return [null];
     return Array.from(result).sort((a,b) => a-b);
+  }
+
+  // ===== 番号の表示・ファイル名用ラベル =====
+  function numberDisplayLabel(num){
+    return (num === null || num === undefined) ? "番号なし" : `No.${num}`;
+  }
+  function numberFileBit(num){
+    return (num === null || num === undefined) ? "" : `_No${num}`;
   }
 
   // ===== 所属テキストの自動フィットサイズ計算 =====
@@ -433,9 +444,18 @@
     ctx.font = `900 ${NO_LABEL.size*s}px "Noto Sans JP", sans-serif`;
     ctx.fillText("No.", NO_LABEL.x*s, NO_LABEL.baselineTop*s);
 
-    // 番号
-    ctx.font = `900 ${NUMBER_TEXT.size*s}px "Noto Sans JP", sans-serif`;
-    ctx.fillText(String(number), NUMBER_TEXT.x*s, NUMBER_TEXT.baselineTop*s);
+    // 番号（未指定の場合は手書き用の線のみ表示）
+    if (number === null || number === undefined || number === ""){
+      ctx.strokeStyle = INK;
+      ctx.lineWidth = Math.max(1, 2*s);
+      ctx.beginPath();
+      ctx.moveTo(NUMBER_LINE.x1*s, NUMBER_LINE.top*s);
+      ctx.lineTo(NUMBER_LINE.x2*s, NUMBER_LINE.top*s);
+      ctx.stroke();
+    } else {
+      ctx.font = `900 ${NUMBER_TEXT.size*s}px "Noto Sans JP", sans-serif`;
+      ctx.fillText(String(number), NUMBER_TEXT.x*s, NUMBER_TEXT.baselineTop*s);
+    }
   }
 
   // ===== 履歴（イベント名）管理 =====
@@ -533,10 +553,6 @@
       setStatus(e.message, "err");
       return null;
     }
-    if (numbers.length === 0){
-      setStatus("駐車証Noを1件以上指定してください（例：1-10）。", "err");
-      return null;
-    }
     setStatus("");
     const mainCanvas = document.getElementById("mainPreview");
     drawCard(mainCanvas, { eventName, affiliation, number: numbers[0] });
@@ -553,7 +569,7 @@
         drawCard(c, { eventName, affiliation, number: num });
         const label = document.createElement("div");
         label.className = "num";
-        label.textContent = `No.${num}`;
+        label.textContent = numberDisplayLabel(num);
         thumbWrap.appendChild(c);
         thumbWrap.appendChild(label);
         listWrap.appendChild(thumbWrap);
@@ -591,7 +607,13 @@
           if (i > 0) doc.addPage([PAGE_W, PAGE_H], "landscape");
           doc.addImage(imgData, "JPEG", 0, 0, PAGE_W, PAGE_H);
         });
-        const fname = `駐車証_${sanitizeFileName(affiliation)}_${numbers[0]}-${numbers[numbers.length-1]}.pdf`;
+        let rangeBit = "";
+        if (numbers.length === 1){
+          rangeBit = numberFileBit(numbers[0]);
+        } else if (numbers[0] !== null && numbers[numbers.length-1] !== null){
+          rangeBit = `_${numbers[0]}-${numbers[numbers.length-1]}`;
+        }
+        const fname = `駐車証_${sanitizeFileName(affiliation)}${rangeBit}.pdf`;
         doc.save(fname);
       } else {
         const zip = new JSZip();
@@ -601,7 +623,7 @@
           const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: [PAGE_W, PAGE_H] });
           doc.addImage(imgData, "JPEG", 0, 0, PAGE_W, PAGE_H);
           const blob = doc.output("blob");
-          zip.file(`駐車証_${sanitizeFileName(affiliation)}_No${num}.pdf`, blob);
+          zip.file(`駐車証_${sanitizeFileName(affiliation)}${numberFileBit(num)}.pdf`, blob);
         }
         const zipBlob = await zip.generateAsync({ type: "blob" });
         downloadBlob(zipBlob, `駐車証_${sanitizeFileName(affiliation)}_個別出力.zip`);
