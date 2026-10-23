@@ -232,16 +232,18 @@
       <h2>1. 内容を入力</h2>
 
       <label for="eventName">イベント名</label>
-      <input type="text" id="eventName" placeholder="例）2025-26 大同生命 SV.LEAGUE">
+      <input type="text" id="eventName" placeholder="例）2026-27 大同生命 SV.LEAGUE">
       <div class="history-chips" id="historyChips"></div>
       <div class="hint">直近5件の履歴をタップすると入力欄にセットされます。</div>
 
       <label for="affiliationSelect">所属（駐車証の種別）</label>
       <select id="affiliationSelect">
-        <option value="チーム関係者">チーム関係者</option>
-        <option value="バレーボール協会">バレーボール協会</option>
-        <option value="STAFF">STAFF</option>
+        <option value="選手">選手</option>
+        <option value="TEAM STAFF">TEAM STAFF</option>
+        <option value="VOREAS社員">VOREAS社員</option>
+        <option value="VB協会関係者">VB協会関係者</option>
         <option value="VIP">VIP</option>
+        <option value="パートナー招待">パートナー招待</option>
         <option value="Class SS">Class SS</option>
         <option value="__custom__">その他（自由入力）</option>
       </select>
@@ -652,7 +654,7 @@
   // ===== 初期化 =====
   (async function init(){
     renderHistory();
-    document.getElementById("eventName").value = "2025-26 大同生命 SV.LEAGUE";
+    document.getElementById("eventName").value = "2026-27 大同生命 SV.LEAGUE";
     document.getElementById("numberInput").value = "1-5";
     await loadLogo();
     await ensureFonts();
